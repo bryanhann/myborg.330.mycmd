@@ -1,0 +1,64 @@
+#!/bin/bash
+#This shebang is for synax only. Do not make executable!
+
+mycmd:isfn () {
+    set | grep -q "${1}\s"
+    return $?
+}
+
+mycmd:__warn_usage () {
+    echo >&2 "[${prog}]: $*"
+    echo >&2 "Try -h."
+}
+
+mycmd:__names4prefix () {
+    local prefix=${1}
+    local cutpoint=$(( ${#prefix} + 1 ))
+    for fn in $(set | grep ^$prefix ); do
+        local name=$(echo $fn | cut -c${cutpoint}-)
+        [ -z "$name" ] && continue
+        echo $name
+    done
+}
+
+mycmd:__help () {
+    echo USAGE:
+    echo "        ${prog} SUBCOMMAND"
+    echo SUBCOMMANDS
+    for name in $(mycmd:__names4prefix USER_${base}_); do
+        local SHORT=$ROOT/doc/${name}.short
+        printf "        $name -- "
+        [ -f $SHORT ] && source $SHORT || echo "no short help available"
+    done
+}
+mycmd:main () {
+    export prog=$(basename $1)
+    export base=$(echo ${prog} | tr "-" "_")
+    export name=$2
+    shift 2
+    case .${name} in
+        .-h|.--help|.help)
+            local subcmd=$1
+            local LONG=${ROOT}/doc/${subcmd}.long
+            [ "${subcmd}" = "" ] && mycmd:__help
+            [ "${subcmd}" = "" ] && return 1
+            [ -f ${LONG} ] && source ${LONG}
+            [ -f ${LONG} ] || echo no long help for [$subcmd]. Try -h. 
+            ;;
+        .)
+            local NULL=NULL_${base}
+            mycmd:isfn $NULL && $NULL
+            mycmd:isfn $NULL || mycmd:__warn_usage "missing subcommand"
+            ;;
+
+        *)
+            local USER=USER_${base}_${name}
+            local INIT=INIT_${base}
+            mycmd:isfn $USER || mycmd:__warn_usage "bad subcommand: [$name]"
+            mycmd:isfn $USER || return
+            mycmd:isfn $USER && mycmd:isfn $INIT && $INIT
+            mycmd:isfn $USER && $USER $*
+            ;;
+    esac
+}
+
