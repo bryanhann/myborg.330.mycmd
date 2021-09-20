@@ -1,0 +1,2 @@
+export MYCMD_ROOT=$(dirname $PWD)
+export PATH=${PATH}:${MYCMD_ROOT}
